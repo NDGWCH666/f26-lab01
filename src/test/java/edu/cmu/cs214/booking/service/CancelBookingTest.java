@@ -2,6 +2,7 @@ package edu.cmu.cs214.booking.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import edu.cmu.cs214.booking.domain.Booking;
@@ -139,5 +140,35 @@ class CancelBookingTest {
 
         assertHolders(alice);
         assertWaiting(bob);
+    }
+
+    @Test
+    void promotedBookingGetsAFreshId() {
+        String cancelled = confirm(alice, 600, 660);
+        waitlist(bob, 600, 660);
+
+        svc.cancelBooking(cancelled);
+
+        Booking promoted = svc.listBookings(roomA).get(0);
+        assertNotEquals(cancelled, promoted.id(),
+                "promotion creates a new booking rather than reviving the old id");
+    }
+
+    @Test
+    void successiveCancellationsPromoteOneWaiterEach() {
+        String first = confirm(alice, 600, 660);
+        String second = confirm(dave, 660, 720);
+        waitlist(bob, 600, 660);
+        waitlist(carol, 660, 720);
+
+        svc.cancelBooking(first);
+
+        assertHolders(bob, dave);
+        assertWaiting(carol);
+
+        svc.cancelBooking(second);
+
+        assertHolders(bob, carol);
+        assertWaiting();
     }
 }
