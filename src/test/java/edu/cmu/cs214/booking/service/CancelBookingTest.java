@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 class CancelBookingTest {
 
     private final Room roomA = new Room("A", "Alpha", 10);
+    private final Room roomB = new Room("B", "Beta", 10);
     private final User alice = new User("u1", "Alice");
     private final User bob = new User("u2", "Bob");
     private final User carol = new User("u3", "Carol");
@@ -170,5 +171,27 @@ class CancelBookingTest {
 
         assertHolders(bob, carol);
         assertWaiting();
+    }
+
+    /**
+     * A busy room B must not block a promotion inside room A, and a cancellation in A
+     * must leave B alone. Counting another room's bookings as "remaining" bookings of
+     * A would make Bob look conflicting and promote nobody.
+     */
+    @Test
+    void cancelInOneRoomIgnoresTheOtherRoomsBookings() {
+        String bookedInA = confirm(alice, 600, 660);
+        assertInstanceOf(BookingResult.Confirmed.class,
+                svc.book(roomB, dave, new TimeInterval(600, 660)),
+                "room B is busy over the very same slot");
+        waitlist(bob, 600, 660);
+
+        svc.cancelBooking(bookedInA);
+
+        assertHolders(bob);
+        assertEquals(new TimeInterval(600, 660), svc.listBookings(roomA).get(0).interval());
+        assertWaiting();
+        assertEquals(1, svc.listBookings(roomB).size(), "room B is untouched");
+        assertEquals(dave, svc.listBookings(roomB).get(0).user());
     }
 }
